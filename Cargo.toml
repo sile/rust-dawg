@@ -1,0 +1,8 @@
+[package]
+name = "dawg"
+version = "0.1.0"
+authors = ["Takeru Ohta <phjgt308@gmail.com>"]
+
+[dependencies]
+bit-vec = "0.4.2"
+byteorder = "*"
