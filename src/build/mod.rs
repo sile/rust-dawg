@@ -262,7 +262,6 @@ impl<W: Write+Seek> DoubleArray<W> {
         loop {
             children = trie.collect_children(); // TODO: reverse(?)
             children.reverse();
-            // println!("[label={}] {}", trie.label, children.len());
             is_memoized = trie.child.as_ref().map(|c| self.memo.contains_key(c) ).unwrap_or(false);
             if is_memoized {
                 break
@@ -290,7 +289,6 @@ impl<W: Write+Seek> DoubleArray<W> {
         }
 
         let base_idx = self.allocator.allocate(children.iter().map(|x| x.label ).collect()); // TODO: passed iterator
-        // println!("base: {}", base_idx);
         self.memo.insert(trie.child.as_ref().unwrap().clone(), base_idx);
         try!(self.write_node(node, Some(base_idx)));
         for child in children.iter() {
@@ -408,20 +406,12 @@ mod trie {
         }
 
         pub fn build<Input>(&mut self, words: Input) -> IoResult<Trie> where Input: Iterator<Item = IoResult<String>> {
-            //use std::thread;
             let mut root = Node::new(0);
 
-            //let mut prev = 0;
             for word in words {
                 // TODO: sortness check
                 let word = try!(word);
                 self.insert(&mut root, word.as_bytes());
-                // if prev != root.collect_children().len() {
-                //     println!("len: {} => {} ({}): memo={}", prev, root.collect_children().len(), word, self.memo.len());
-                //     prev = root.collect_children().len();
-                // }
-                // thread::sleep_ms(1000);
-                // assert!(word != "Abernathy");
             }
 
             println!("nodes: {}, {}, {}", self.memo.len(), root.child.is_some(), root.sibling.is_some());
@@ -431,17 +421,12 @@ mod trie {
         }
 
         fn insert(&mut self, parent: &mut Node, word: &[u8]) {
-            // if word.len() > 0 {
-            //     print!("{} => ", word[0]);
-            // }
             match parent.child.take() {
                 None => {
-                    // println!("");
                     self.push_child(parent, word);
                 },
                 Some(mut child) => {
                     if word.is_empty() || word[0] != child.label {
-                        // println!("");
                         parent.child = Some(self.share(child));
                         self.push_child(parent, word);
                     } else {
@@ -464,32 +449,23 @@ mod trie {
         }
 
         fn share(&mut self, node: Rc<Node>) -> Rc<Node> {
-            // TODO: calc {child,sibling}_count
             if let Some(n) = self.memo.get(&node) {
                 return n.clone()
             }
-            match Rc::try_unwrap(node) {
-                Err(node) => {
-                    println!(" found");
-                    node // already shared (TODO: unreachable)
-                },
-                Ok(mut node) => {
-                    node.sibling = node.sibling.map(|n| self.share(n) );
-                    node.child = node.child.map(|n| self.share(n) );
 
-                    node.child_total = node.calc_child_total();
-                    node.sibling_total = node.calc_sibling_total();
-                    let node = Rc::new(node);
-                    if let Some(n) = self.memo.get(&node) {
-                        return n.clone()
-                    }
+            let mut node = Rc::try_unwrap(node).ok().unwrap();
+            node.sibling = node.sibling.map(|n| self.share(n) );
+            node.child = node.child.map(|n| self.share(n) );
 
-                    //let before = self.memo.len();
-                    self.memo.insert(node.clone(), node.clone());
-                    //println!("  memo: {} => {}", before, self.memo.len());
-                    node
-                },
+            node.child_total = node.calc_child_total();
+            node.sibling_total = node.calc_sibling_total();
+            let node = Rc::new(node);
+            if let Some(n) = self.memo.get(&node) {
+                return n.clone()
             }
+
+            self.memo.insert(node.clone(), node.clone());
+            node
         }
     }
 
