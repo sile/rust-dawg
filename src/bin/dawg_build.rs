@@ -10,6 +10,7 @@ use std::process;
 use std::io;
 use std::io::BufRead;
 use dawg::binary_tree::Builder as BinaryTreeBuilder;
+use dawg::double_array::Builder as DoubleArrayBuilder;
 
 fn main() {
     let args: Vec<_> = env::args().collect();
@@ -20,11 +21,14 @@ fn main() {
 
     let stdin = io::stdin();
     let output_file = &args[1];
-    let trie =
-        BinaryTreeBuilder::new().build(stdin.lock().lines())
-        .unwrap_or_else(|e| {
-            println!("[ERROR] Can't build DAWG: reason={}", e);
-            process::exit(1);
-        });
+    let trie = BinaryTreeBuilder::new()
+                   .build(stdin.lock().lines())
+                   .unwrap_or_else(|e| {
+                       println!("[ERROR] Can't build DAWG: reason={}", e);
+                       process::exit(1);
+                   });
+    let trie = DoubleArrayBuilder::new().build(trie);
+    trie.save();
+
     println!("DONE");
 }

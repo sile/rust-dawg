@@ -10,3 +10,5 @@ mod node;
 pub type Builder = builder::Builder;
 pub type Trie = trie::Trie;
 pub type Node = node::Node;
+pub type NodeAddr = node::NodeAddr;
+pub type NodeChildren = node::Children;

@@ -8,7 +8,6 @@ use std::rc::Rc;
 use std::cmp::PartialEq;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::ops::Deref;
 use WordId;
 
 #[derive(Eq)]
@@ -21,10 +20,12 @@ pub struct Node {
     sibling_total: u32,
 }
 
+pub type NodeAddr = usize;
+
 impl PartialEq for Node {
     fn eq(&self, other: &Node) -> bool {
-        (self.child.as_ref().map(addr) == other.child.as_ref().map(addr) &&
-         self.sibling.as_ref().map(addr) == other.sibling.as_ref().map(addr) &&
+        (self.child.as_ref().map(|n| n.addr()) == other.child.as_ref().map(|n| n.addr()) &&
+         self.sibling.as_ref().map(|n| n.addr()) == other.sibling.as_ref().map(|n| n.addr()) &&
          self.label == other.label && self.is_terminal == other.is_terminal)
     }
 }
@@ -33,8 +34,8 @@ impl Hash for Node {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.label.hash(state);
         self.is_terminal.hash(state);
-        self.child.as_ref().map(addr).hash(state);
-        self.sibling.as_ref().map(addr).hash(state);
+        self.child.as_ref().map(|n| n.addr()).hash(state);
+        self.sibling.as_ref().map(|n| n.addr()).hash(state);
     }
 }
 
@@ -64,16 +65,44 @@ impl Node {
     }
 
     pub fn children(&self) -> Children {
-        Children { curr: &self.child }
+        Children { curr: self.child.clone() }
+    }
+
+    pub fn take_children(&mut self) -> Children {
+        Children { curr: self.child.take() }
+    }
+
+    pub fn ref_children(&self) -> RefChildren {
+        RefChildren { curr: &self.child }
+    }
+
+    pub fn addr(&self) -> NodeAddr {
+        unsafe { mem::transmute(self) }
     }
 }
 
-pub struct Children<'a> {
+#[derive(Clone)]
+pub struct Children {
+    curr: Option<Rc<Node>>,
+}
+
+impl Iterator for Children {
+    type Item = Rc<Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.curr.take().map(|child| {
+            self.curr = child.sibling.clone();
+            child
+        })
+    }
+}
+
+pub struct RefChildren<'a> {
     curr: &'a Option<Rc<Node>>,
 }
 
-impl<'a> Iterator for Children<'a> {
-    type Item = &'a Node;
+impl<'a> Iterator for RefChildren<'a> {
+    type Item =&'a Node;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(child) = self.curr.as_ref() {
@@ -83,8 +112,4 @@ impl<'a> Iterator for Children<'a> {
             None
         }
     }
-}
-
-fn addr<T>(x: &Rc<T>) -> usize {
-    unsafe { mem::transmute(x.deref()) }
 }

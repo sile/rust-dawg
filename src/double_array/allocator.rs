@@ -3,11 +3,4 @@
 // This software is released under the MIT License,
 // see the LICENSE file at the top-level directory.
 
-extern crate bit_vec;
-extern crate byteorder;
-
-pub mod build;
-pub mod binary_tree;
-pub mod double_array;
-
-pub type WordId = u32;
+pub struct Allocator;

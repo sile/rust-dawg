@@ -20,6 +20,10 @@ impl Trie {
         self.root.len()
     }
 
+    pub fn to_node(self) -> Node {
+        self.root
+    }
+
     pub fn contains(&self, word: &str) -> bool {
         self.get_id(word).is_some()
     }
@@ -83,7 +87,7 @@ impl<'a, 'b> CommonPrefixIter<'a, 'b> {
         let label = self.word[self.offset];
         self.offset += 1;
         self.node
-            .children()
+            .ref_children()
             .find(|c| c.label == label)
             .map(|c| {
                 self.word_id += c.id_offset();

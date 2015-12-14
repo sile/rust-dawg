@@ -3,11 +3,12 @@
 // This software is released under the MIT License,
 // see the LICENSE file at the top-level directory.
 
-extern crate bit_vec;
-extern crate byteorder;
+pub struct Trie;
 
-pub mod build;
-pub mod binary_tree;
-pub mod double_array;
-
-pub type WordId = u32;
+impl Trie {
+    pub fn new() -> Self {
+        Trie
+    }
+    pub fn load(&self) {}
+    pub fn save(&self) {}
+}

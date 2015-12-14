@@ -3,11 +3,12 @@
 // This software is released under the MIT License,
 // see the LICENSE file at the top-level directory.
 
-extern crate bit_vec;
-extern crate byteorder;
+mod builder;
+mod allocator;
+mod trie;
 
-pub mod build;
-pub mod binary_tree;
-pub mod double_array;
+pub type Base = u32;
+pub type Chck = u8;
 
-pub type WordId = u32;
+pub type Builder = builder::Builder;
+pub type Trie = trie::Trie;
