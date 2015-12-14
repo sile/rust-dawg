@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::fs::{self,File};
+use std::fs::{self, File};
 use std::io::Result as IoResult;
 use std::io::Read;
 use std::io::Write;
@@ -108,16 +108,16 @@ impl Allocator {
         if self.offset + BUFFER_SIZE <= index {
             self.shift();
             self.get(index)
-        }  else {
+        } else {
             self.nexts[index - self.offset]
         }
     }
 
     fn can_allocate(&mut self, index: usize, arcs: &[u8]) -> bool {
         if self.is_allocated(index) {
-            return false // already used
+            return false; // already used
         }
-        arcs.iter().all(|a| self.get(index + *a as usize) != -1 )
+        arcs.iter().all(|a| self.get(index + *a as usize) != -1)
     }
 
     fn is_allocated(&mut self, index: usize) -> bool {
@@ -182,7 +182,7 @@ impl Builder {
             let temp_node_file = try!(File::create(&temp_node_path));
             let temp_ext_file = try!(File::create(&temp_ext_path));
 
-            let mut da =  DoubleArray {
+            let mut da = DoubleArray {
                 memo: HashMap::new(),
                 allocator: Allocator::new(),
                 node_writer: BufWriter::new(temp_node_file),
@@ -241,12 +241,11 @@ impl Node {
     }
 
     pub fn is_child_acceptable(&self) -> bool {
-        let capacity =
-            match self.node_type {
-                0 => 2,
-                1 => 1,
-                _ => 0,
-            };
+        let capacity = match self.node_type {
+            0 => 2,
+            1 => 1,
+            _ => 0,
+        };
         capacity > self.children.len()
     }
 
@@ -255,40 +254,40 @@ impl Node {
     }
 }
 
-impl<W: Write+Seek> DoubleArray<W> {
+impl<W: Write + Seek> DoubleArray<W> {
     pub fn build(&mut self, mut trie: Rc<trie::Node>, mut node: Node) -> IoResult<()> {
         let mut children;
         let mut is_memoized;
         loop {
             children = trie.collect_children(); // TODO: reverse(?)
             children.reverse();
-            is_memoized = trie.child.as_ref().map(|c| self.memo.contains_key(c) ).unwrap_or(false);
+            is_memoized = trie.child.as_ref().map(|c| self.memo.contains_key(c)).unwrap_or(false);
             if is_memoized {
-                break
+                break;
             }
             if children.len() != 1 {
-                break
+                break;
             }
             if children[0].is_terminal {
-                break
+                break;
             }
-            if ! node.is_child_acceptable() {
-                break
+            if !node.is_child_acceptable() {
+                break;
             }
             node.add_child(children[0].label);
             trie = children[0].clone();
         }
 
         if is_memoized {
-            let &base = trie.child.as_ref().map(|c| self.memo.get(c) ).unwrap().unwrap();
-            return self.write_node(node, Some(base))
+            let &base = trie.child.as_ref().map(|c| self.memo.get(c)).unwrap().unwrap();
+            return self.write_node(node, Some(base));
         }
 
         if children.is_empty() {
-            return self.write_node(node, None)
+            return self.write_node(node, None);
         }
 
-        let base_idx = self.allocator.allocate(children.iter().map(|x| x.label ).collect()); // TODO: passed iterator
+        let base_idx = self.allocator.allocate(children.iter().map(|x| x.label).collect()); // TODO: passed iterator
         self.memo.insert(trie.child.as_ref().unwrap().clone(), base_idx);
         try!(self.write_node(node, Some(base_idx)));
         for child in children.iter() {
@@ -300,37 +299,32 @@ impl<W: Write+Seek> DoubleArray<W> {
     fn write_node(&mut self, mut node: Node, base: Option<u32>) -> IoResult<()> {
         node.base = base.unwrap_or(node.base);
 
-        let n: u64 =
-            mask(node.base        as u64,  0, 29) +
-            mask(node.node_type   as u64, 29,  2) +
-            mask(node.is_terminal as u64, 31,  1) +
-            mask(node.chck        as u64, 32,  8);
+        let n: u64 = mask(node.base as u64, 0, 29) + mask(node.node_type as u64, 29, 2) +
+                     mask(node.is_terminal as u64, 31, 1) +
+                     mask(node.chck as u64, 32, 8);
 
-        let n =
-            match node.node_type {
-                0 => {
-                    n + mask(*node.children.get(0).unwrap_or(&0) as u64, 40, 8) +
-                        mask(*node.children.get(1).unwrap_or(&0) as u64, 48, 8) +
-                        mask(node.sibling_total                 as u64, 56, 8)
-                },
-                1 => {
-                    n + mask(*node.children.get(0).unwrap_or(&0) as u64, 40,  8) +
-                        mask(node.sibling_total                 as u64, 48, 16)
-                },
-                2 => {
-                    n + mask(node.sibling_total                 as u64, 40, 24)
-                },
-                3 => {
-                    let m = node.sibling_total;
-                    let mut buf = [0; 4];
-                    NativeEndian::write_u32(&mut buf, m);
+        let n = match node.node_type {
+            0 => {
+                n + mask(*node.children.get(0).unwrap_or(&0) as u64, 40, 8) +
+                mask(*node.children.get(1).unwrap_or(&0) as u64, 48, 8) +
+                mask(node.sibling_total as u64, 56, 8)
+            }
+            1 => {
+                n + mask(*node.children.get(0).unwrap_or(&0) as u64, 40, 8) +
+                mask(node.sibling_total as u64, 48, 16)
+            }
+            2 => n + mask(node.sibling_total as u64, 40, 24),
+            3 => {
+                let m = node.sibling_total;
+                let mut buf = [0; 4];
+                NativeEndian::write_u32(&mut buf, m);
 
-                    try!(self.ext_writer.write_all(&buf));
-                    self.ext_position += 4;
-                    n + mask((self.ext_position - 4) as u64, 40, 24)
-                },
-                _ => unreachable!(),
-            };
+                try!(self.ext_writer.write_all(&buf));
+                self.ext_position += 4;
+                n + mask((self.ext_position - 4) as u64, 40, 24)
+            }
+            _ => unreachable!(),
+        };
         {
             let mut buf = [0; 8];
             NativeEndian::write_u64(&mut buf, n);
@@ -355,7 +349,7 @@ mod trie {
     use std::mem;
     use std::ops::Deref;
 
-    //type Memo = HashSet<Rc<Node>>;
+    // type Memo = HashSet<Rc<Node>>;
     type Memo = HashMap<Rc<Node>, Rc<Node>>;
 
     pub struct Trie {
@@ -376,8 +370,7 @@ mod trie {
         fn eq(&self, other: &Node) -> bool {
             (self.child.as_ref().map(addr) == other.child.as_ref().map(addr) &&
              self.sibling.as_ref().map(addr) == other.sibling.as_ref().map(addr) &&
-             self.label == other.label &&
-             self.is_terminal == other.is_terminal)
+             self.label == other.label && self.is_terminal == other.is_terminal)
         }
     }
 
@@ -391,9 +384,7 @@ mod trie {
     }
 
     fn addr<T>(x: &Rc<T>) -> usize {
-        unsafe {
-            mem::transmute(x.deref())
-        }
+        unsafe { mem::transmute(x.deref()) }
     }
 
     pub struct Builder {
@@ -402,10 +393,12 @@ mod trie {
 
     impl Builder {
         pub fn new() -> Self {
-            Builder {memo: HashMap::new()}
+            Builder { memo: HashMap::new() }
         }
 
-        pub fn build<Input>(&mut self, words: Input) -> IoResult<Trie> where Input: Iterator<Item = IoResult<String>> {
+        pub fn build<Input>(&mut self, words: Input) -> IoResult<Trie>
+            where Input: Iterator<Item = IoResult<String>>
+        {
             let mut root = Node::new(0);
 
             for word in words {
@@ -414,17 +407,20 @@ mod trie {
                 self.insert(&mut root, word.as_bytes());
             }
 
-            println!("nodes: {}, {}, {}", self.memo.len(), root.child.is_some(), root.sibling.is_some());
+            println!("nodes: {}, {}, {}",
+                     self.memo.len(),
+                     root.child.is_some(),
+                     root.sibling.is_some());
             let root = self.share(Rc::new(root));
             self.memo.clear();
-            Ok(Trie{root: Rc::try_unwrap(root).ok().unwrap()})
+            Ok(Trie { root: Rc::try_unwrap(root).ok().unwrap() })
         }
 
         fn insert(&mut self, parent: &mut Node, word: &[u8]) {
             match parent.child.take() {
                 None => {
                     self.push_child(parent, word);
-                },
+                }
                 Some(mut child) => {
                     if word.is_empty() || word[0] != child.label {
                         parent.child = Some(self.share(child));
@@ -433,7 +429,7 @@ mod trie {
                         self.insert(Rc::get_mut(&mut child).unwrap(), &word[1..]);
                         parent.child = Some(child);
                     }
-                },
+                }
             }
         }
 
@@ -450,18 +446,18 @@ mod trie {
 
         fn share(&mut self, node: Rc<Node>) -> Rc<Node> {
             if let Some(n) = self.memo.get(&node) {
-                return n.clone()
+                return n.clone();
             }
 
             let mut node = Rc::try_unwrap(node).ok().unwrap();
-            node.sibling = node.sibling.map(|n| self.share(n) );
-            node.child = node.child.map(|n| self.share(n) );
+            node.sibling = node.sibling.map(|n| self.share(n));
+            node.child = node.child.map(|n| self.share(n));
 
             node.child_total = node.calc_child_total();
             node.sibling_total = node.calc_sibling_total();
             let node = Rc::new(node);
             if let Some(n) = self.memo.get(&node) {
-                return n.clone()
+                return n.clone();
             }
 
             self.memo.insert(node.clone(), node.clone());
@@ -482,18 +478,24 @@ mod trie {
         }
 
         pub fn calc_child_total(&mut self) -> u32 {
-            self.child.as_ref().map(|n| n.is_terminal as u32 + n.child_total + n.sibling_total ).unwrap_or(0)
+            self.child
+                .as_ref()
+                .map(|n| n.is_terminal as u32 + n.child_total + n.sibling_total)
+                .unwrap_or(0)
         }
 
         pub fn calc_sibling_total(&mut self) -> u32 {
-            self.sibling.as_ref().map(|n| n.is_terminal as u32 + n.child_total + n.sibling_total ).unwrap_or(0)
+            self.sibling
+                .as_ref()
+                .map(|n| n.is_terminal as u32 + n.child_total + n.sibling_total)
+                .unwrap_or(0)
         }
 
         // TODO: returns iterator
         pub fn collect_children(&self) -> Vec<Rc<Node>> {
             let mut v = Vec::new();
             match self.child.as_ref() {
-                None        => v,
+                None => v,
                 Some(mut c) => {
                     v.push(c.clone());
                     while let Some(x) = c.sibling.as_ref() {

@@ -13,9 +13,7 @@ pub struct Trie {
 
 impl Trie {
     pub fn new(root: Node) -> Self {
-        Trie {
-            root: root,
-        }
+        Trie { root: root }
     }
 
     pub fn len(&self) -> usize {
@@ -27,7 +25,7 @@ impl Trie {
     }
 
     pub fn get_id(&self, word: &str) -> Option<WordId> {
-        self.search_common_prefix(word).find(|m| word.len() == m.1.len() ).map(|m| m.0 )
+        self.search_common_prefix(word).find(|m| word.len() == m.1.len()).map(|m| m.0)
     }
 
     pub fn search_common_prefix<'a, 'b>(&'a self, word: &'b str) -> CommonPrefixIter<'a, 'b> {
@@ -37,7 +35,7 @@ impl Trie {
             node: &self.root,
             word: word.as_bytes(),
         };
-        if ! it.node.is_terminal {
+        if !it.node.is_terminal {
             it.go_to_next_common_prefix();
         }
         it
@@ -58,7 +56,7 @@ impl<'a, 'b> Iterator for CommonPrefixIter<'a, 'b> {
         if self.offset > self.word.len() {
             None
         } else {
-            let prefix = unsafe{ str::from_utf8_unchecked(&self.word[0..self.offset]) };
+            let prefix = unsafe { str::from_utf8_unchecked(&self.word[0..self.offset]) };
             let item = (self.word_id, prefix);
             self.word_id += 1;
             self.go_to_next_common_prefix();
@@ -70,7 +68,9 @@ impl<'a, 'b> Iterator for CommonPrefixIter<'a, 'b> {
 impl<'a, 'b> CommonPrefixIter<'a, 'b> {
     fn go_to_next_common_prefix(&mut self) {
         while self.next_child() {
-            if self.node.is_terminal { return }
+            if self.node.is_terminal {
+                return;
+            }
         }
         self.offset = self.word.len() + 1;
     }
@@ -82,9 +82,13 @@ impl<'a, 'b> CommonPrefixIter<'a, 'b> {
 
         let label = self.word[self.offset];
         self.offset += 1;
-        self.node.children().find(|c| c.label == label ).map(|c| {
-            self.word_id += c.id_offset();
-            self.node = c;
-        }).is_some()
+        self.node
+            .children()
+            .find(|c| c.label == label)
+            .map(|c| {
+                self.word_id += c.id_offset();
+                self.node = c;
+            })
+            .is_some()
     }
 }

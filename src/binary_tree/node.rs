@@ -25,8 +25,7 @@ impl PartialEq for Node {
     fn eq(&self, other: &Node) -> bool {
         (self.child.as_ref().map(addr) == other.child.as_ref().map(addr) &&
          self.sibling.as_ref().map(addr) == other.sibling.as_ref().map(addr) &&
-         self.label == other.label &&
-         self.is_terminal == other.is_terminal)
+         self.label == other.label && self.is_terminal == other.is_terminal)
     }
 }
 
@@ -60,14 +59,12 @@ impl Node {
     }
 
     pub fn fix(&mut self) {
-        self.child_total = self.child.as_ref().map_or(0, |n| n.len() as u32 );
-        self.sibling_total = self.sibling.as_ref().map_or(0, |n| n.len() as u32 );
+        self.child_total = self.child.as_ref().map_or(0, |n| n.len() as u32);
+        self.sibling_total = self.sibling.as_ref().map_or(0, |n| n.len() as u32);
     }
 
     pub fn children(&self) -> Children {
-        Children {
-            curr: &self.child,
-        }
+        Children { curr: &self.child }
     }
 }
 
@@ -89,7 +86,5 @@ impl<'a> Iterator for Children<'a> {
 }
 
 fn addr<T>(x: &Rc<T>) -> usize {
-    unsafe {
-        mem::transmute(x.deref())
-    }
+    unsafe { mem::transmute(x.deref()) }
 }

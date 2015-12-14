@@ -19,12 +19,12 @@ type Memo = HashMap<Rc<Node>, Rc<Node>>;
 
 impl Builder {
     pub fn new() -> Self {
-        Builder {
-            memo: Memo::new(),
-        }
+        Builder { memo: Memo::new() }
     }
 
-    pub fn build<Words>(mut self, words: Words) -> IoResult<Trie> where Words: Iterator<Item = IoResult<String>> {
+    pub fn build<Words>(mut self, words: Words) -> IoResult<Trie>
+        where Words: Iterator<Item = IoResult<String>>
+    {
         let mut root = Node::new(0);
         let mut prev = None;
 
@@ -41,7 +41,7 @@ impl Builder {
     }
 
     fn insert(&mut self, parent: &mut Node, word: &[u8]) {
-        if word.is_empty() || parent.child.as_ref().map_or(true, |c| c.label != word[0] ) {
+        if word.is_empty() || parent.child.as_ref().map_or(true, |c| c.label != word[0]) {
             self.add_new_child(parent, word);
         } else {
             let child = parent.child.as_mut().unwrap();
@@ -55,18 +55,18 @@ impl Builder {
         } else {
             let mut child = Node::new(word[0]);
             self.add_new_child(&mut child, &word[1..]);
-            child.sibling = parent.child.take().map(|c| self.share(c) );
+            child.sibling = parent.child.take().map(|c| self.share(c));
             parent.child = Some(Rc::new(child));
         }
     }
 
     fn share(&mut self, mut node: Rc<Node>) -> Rc<Node> {
         if let Some(n) = self.memo.get(&node) {
-            return n.clone()
+            return n.clone();
         }
         self.share_children(Rc::get_mut(&mut node).unwrap());
         if let Some(n) = self.memo.get(&node) {
-            return n.clone()
+            return n.clone();
         }
         Rc::get_mut(&mut node).unwrap().fix();
         self.memo.insert(node.clone(), node.clone());
@@ -74,8 +74,8 @@ impl Builder {
     }
 
     fn share_children(&mut self, node: &mut Node) {
-        node.sibling = node.sibling.take().map(|n| self.share(n) );
-        node.child = node.child.take().map(|n| self.share(n) );
+        node.sibling = node.sibling.take().map(|n| self.share(n));
+        node.child = node.child.take().map(|n| self.share(n));
     }
 }
 
@@ -83,7 +83,9 @@ fn validate_input_order(prev: Option<&String>, curr: &String) -> IoResult<()> {
     if prev.map_or(true, |p| p < curr) {
         Ok(())
     } else {
-        let msg = format!("The input is not sorted: previous_word={:?}, current_word={:?}", prev.unwrap(), curr);
+        let msg = format!("The input is not sorted: previous_word={:?}, current_word={:?}",
+                          prev.unwrap(),
+                          curr);
         Err(IoError::new(ErrorKind::InvalidInput, msg))
     }
 }

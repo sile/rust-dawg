@@ -12,7 +12,7 @@ use std::io::BufRead;
 use dawg::binary_tree::Builder as BinaryTreeBuilder;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args: Vec<_> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: {} OUTPUT_INDEX_FILE", args[0]);
         process::exit(1);
