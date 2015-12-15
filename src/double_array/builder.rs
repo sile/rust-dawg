@@ -201,7 +201,7 @@ impl Builder {
             &NodeInfo::Type2{id_offset} => n + mask(id_offset as u64, 40, 24),
             &NodeInfo::Type3{id_offset} => {
                 self.exts.push(id_offset);
-                n + mask((self.exts.len() - 1) as u64 * 4, 40, 24)
+                n + mask((self.exts.len() - 1) as u64, 40, 24)
             }
         };
         if self.nodes.len() <= node.index as usize {
