@@ -52,7 +52,7 @@ enum NodeInfo {
 impl Node {
     pub fn new(parent_base: Base, bt_node: &BinTreeNode) -> Self {
         Node {
-            base: parent_base,
+            base: 0,
             chck: bt_node.label,
             is_terminal: bt_node.is_terminal,
             index: parent_base + bt_node.label as u32,
@@ -155,6 +155,9 @@ impl Builder {
             let mut children = children.clone();
             let only_child = children.next().unwrap();
             if children.next().is_some() {
+                break;
+            }
+            if only_child.is_terminal {
                 break;
             }
             if !da_node.try_add_child(only_child.label) {
