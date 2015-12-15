@@ -28,7 +28,10 @@ fn main() {
                        process::exit(1);
                    });
     let trie = DoubleArrayBuilder::new().build(trie);
-    trie.save();
+    if let Err(e) = trie.save(output_file) {
+        println!("[ERROR] Can't save dawg index: path={}, reason={}", output_file, e);
+        process::exit(1);
+    }
 
     println!("DONE");
 }
