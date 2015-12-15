@@ -6,7 +6,6 @@
 extern crate bit_vec;
 extern crate byteorder;
 
-pub mod build;
 pub mod binary_tree;
 pub mod double_array;
 

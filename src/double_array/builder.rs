@@ -21,7 +21,7 @@ pub struct Builder {
 }
 
 type Memo = HashMap<NodeAddr, Base>;
-type u24 = u32;
+type U24 = u32;
 
 struct Node {
     base: Base,
@@ -42,7 +42,7 @@ enum NodeInfo {
         child: Option<u8>,
     },
     Type2 {
-        id_offset: u24,
+        id_offset: U24,
     },
     Type3 {
         id_offset: u32,
@@ -70,7 +70,7 @@ impl Node {
                         child: None,
                     }
                 }
-                n if n < 0x1000000 => NodeInfo::Type2 { id_offset: n as u24 },
+                n if n < 0x1000000 => NodeInfo::Type2 { id_offset: n as U24 },
                 n => NodeInfo::Type3 { id_offset: n },
             },
         }
