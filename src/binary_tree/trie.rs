@@ -6,6 +6,8 @@
 use std::str;
 use WordId;
 use binary_tree::Node;
+use double_array::Trie as DoubleArrayTrie;
+use double_array::Builder as DoubleArrayBuilder;
 
 pub struct Trie {
     root: Node,
@@ -22,6 +24,10 @@ impl Trie {
 
     pub fn to_node(self) -> Node {
         self.root
+    }
+
+    pub fn to_double_array(self) -> DoubleArrayTrie {
+        DoubleArrayBuilder::new().build(self)
     }
 
     pub fn contains(&self, word: &str) -> bool {
