@@ -89,7 +89,6 @@ impl Trie {
         Ok(Trie::new(nodes, exts))
     }
 
-    // TODO: add padding
     pub fn save<P: AsRef<Path>>(&self, index_file_path: P) -> IoResult<()> {
         let mut w = BufWriter::new(try!(File::create(index_file_path)));
         try!(write_u32(&mut w, self.nodes.len() as u32 * 8));

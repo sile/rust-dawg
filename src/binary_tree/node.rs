@@ -90,8 +90,10 @@ impl Iterator for Children {
     type Item = Rc<Node>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.curr.take().map(|child| {
-            self.curr = child.sibling.clone();
+        self.curr.take().map(|mut child| {
+            self.curr = Rc::get_mut(&mut child)
+                            .map(|c| c.sibling.clone())
+                            .unwrap_or_else(|| child.sibling.clone());
             child
         })
     }

@@ -118,6 +118,7 @@ impl Builder {
         let bt_root = trie.to_node();
         let da_root = Node::new(0, &bt_root);
         self.build_impl(Rc::new(bt_root), da_root);
+        self.allocator.fix(&mut self.nodes);
         Trie::new(self.nodes, self.exts)
     }
 
@@ -165,7 +166,7 @@ impl Builder {
 
         let base = {
             let labels = children.iter().map(|c| c.label).collect::<Vec<_>>();
-            self.allocator.allocate(&labels)
+            self.allocator.allocate(&labels, &mut self.nodes)
         };
         if do_memoize {
             self.memo.insert(memo_key, base);
@@ -196,9 +197,7 @@ impl Builder {
                 n + mask((self.exts.len() - 1) as u64, 40, 24)
             }
         };
-        if self.nodes.len() <= node.index as usize {
-            self.nodes.resize(node.index as usize + 1, 0);
-        }
+        assert!((node.index as usize) < self.nodes.len());
         self.nodes[node.index as usize] = n;
     }
 }
