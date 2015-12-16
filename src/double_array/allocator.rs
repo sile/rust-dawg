@@ -7,9 +7,8 @@ use bit_vec::BitVec;
 
 pub struct Allocator {
     head: usize,
-    bits: BitVec,
+    pub bits: BitVec,
     nexts: Vec<Option<u32>>,
-    prevs: Vec<Option<u32>>,
 }
 
 impl Allocator {
@@ -18,35 +17,28 @@ impl Allocator {
             head: 0x100,
             bits: BitVec::from_elem(1, false),
             nexts: vec![Some(1)],
-            prevs: vec![None],
         }
     }
 
     pub fn allocate(&mut self, arcs: &[u8]) -> u32 {
         assert!(arcs.len() > 0);
 
-        // let mut count = 0;
         let front = arcs[0];
         let head = self.head;
+        let mut prev = head;
         let mut curr = self.get_next(head);
         loop {
             let base = curr - front as u32;
             if self.can_allocate(base as usize, &arcs[1..]) {
-                self.allocate_impl(base as usize, &arcs);
-                // TODO: optimize
-                // if count > 10 {
-                //     let head = self.head;
-                //     let next_head = self.get_next(head) as usize;
-                //     self.head = next_head;
-                // }
+                self.allocate_impl(base as usize, &arcs, prev);
                 return base;
             }
-            // count += 1;
+            prev = curr as usize;
             curr = self.get_next(curr as usize);
         }
     }
 
-    fn allocate_impl(&mut self, index: usize, arcs: &[u8]) {
+    fn allocate_impl(&mut self, index: usize, arcs: &[u8], mut prev: usize) {
         self.bits.set(index, true);
 
         let base = index;
@@ -54,19 +46,19 @@ impl Allocator {
             let index = base + *arc as usize;
             self.extend_if_needed(index);
 
-            let prev = self.prevs[index].unwrap() as usize;
+            while self.nexts[prev] != Some(index as u32) {
+                prev = self.nexts[prev].unwrap() as usize;
+                assert!(prev < index);
+            }
+
             let next = self.nexts[index].unwrap() as usize;
 
-            self.prevs[index] = None;
             self.nexts[index] = None;
 
             if self.head == index {
                 self.head = next;
             }
             self.nexts[prev] = Some(next as u32);
-
-            self.extend_if_needed(next);
-            self.prevs[next] = Some(prev as u32);
         }
     }
 
@@ -88,13 +80,12 @@ impl Allocator {
     }
 
     fn extend_if_needed(&mut self, index: usize) {
-        if index < self.prevs.len() {
+        if index < self.nexts.len() {
             return;
         }
-        let size = self.prevs.len();
+        let size = self.nexts.len();
         for i in size..index + 1 {
             self.nexts.push(Some(i as u32 + 1));
-            self.prevs.push(Some(i as u32 - 1));
         }
         self.bits.grow(index + 1 - size, false);
     }
