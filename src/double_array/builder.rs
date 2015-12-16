@@ -142,11 +142,11 @@ impl Builder {
 
             children = match Rc::try_unwrap(bt_node) {
                 Ok(mut bt_node) => {
-                    do_memoize = false; // not shared
+                    do_memoize = Rc::get_mut(bt_node.child.as_mut().unwrap()).is_none();
                     bt_node.take_children().collect()
                 }
                 Err(bt_node) => {
-                    do_memoize = true; // shared
+                    do_memoize = true;
                     bt_node.children().collect()
                 }
             };

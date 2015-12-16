@@ -92,7 +92,7 @@ impl Iterator for Children {
     fn next(&mut self) -> Option<Self::Item> {
         self.curr.take().map(|mut child| {
             self.curr = Rc::get_mut(&mut child)
-                            .map(|c| c.sibling.clone())
+                            .map(|c| c.sibling.take())
                             .unwrap_or_else(|| child.sibling.clone());
             child
         })
