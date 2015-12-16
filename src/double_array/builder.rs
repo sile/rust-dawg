@@ -24,7 +24,6 @@ type Memo = HashMap<NodeAddr, Base>;
 type U24 = u32;
 
 struct Node {
-    base: Base,
     chck: Chck,
     is_terminal: bool,
     index: u32,
@@ -52,7 +51,6 @@ enum NodeInfo {
 impl Node {
     pub fn new(parent_base: Base, bt_node: &BinTreeNode) -> Self {
         Node {
-            base: 0,
             chck: bt_node.label,
             is_terminal: bt_node.is_terminal,
             index: parent_base + bt_node.label as u32,
@@ -124,69 +122,63 @@ impl Builder {
     }
 
     fn build_impl(&mut self, mut bt_node: Rc<BinTreeNode>, mut da_node: Node) {
-        let mut children;
+        let mut children: Vec<_>;
         let mut memo_key;
         let mut do_memoize;
         loop {
             if bt_node.child.is_none() {
                 // empty children
-                self.fix_node(da_node, None);
+                self.fix_node(da_node, 0);
                 return;
             }
 
             memo_key = bt_node.child.as_ref().unwrap().addr();
             if let Some(base) = self.memo.get(&memo_key).cloned() {
                 // have been memoized
-                self.fix_node(da_node, Some(base));
+                self.fix_node(da_node, base);
                 return;
             }
 
-            match Rc::try_unwrap(bt_node) {
+            children = match Rc::try_unwrap(bt_node) {
                 Ok(mut bt_node) => {
                     do_memoize = false; // not shared
-                    children = bt_node.take_children();
+                    bt_node.take_children().collect()
                 }
                 Err(bt_node) => {
                     do_memoize = true; // shared
-                    children = bt_node.children();
+                    bt_node.children().collect()
                 }
             };
+            children.reverse();
 
-            let mut children = children.clone();
-            let only_child = children.next().unwrap();
-            if children.next().is_some() {
+            if children.len() != 1 {
                 break;
             }
-            if only_child.is_terminal {
+            if children[0].is_terminal {
                 break;
             }
-            if !da_node.try_add_child(only_child.label) {
+            if !da_node.try_add_child(children[0].label) {
                 break;
             }
-            bt_node = only_child.clone();
+            bt_node = children[0].clone();
         }
 
         let base = {
-            let mut buf = [0; 0x100];
-            let len = (0..).zip(children.clone()).map(|(i, c)| buf[i] = c.label).count();
-
-            let mut labels = &mut buf[0..len];
-            labels.reverse();
-            self.allocator.allocate(labels)
+            let labels = children.iter().map(|c| c.label).collect::<Vec<_>>();
+            self.allocator.allocate(&labels)
         };
         if do_memoize {
             self.memo.insert(memo_key, base);
         }
-        self.fix_node(da_node, Some(base));
-        for bt_child in children {
+        self.fix_node(da_node, base);
+        for bt_child in children.into_iter() {
             let da_child = Node::new(base, &bt_child);
             self.build_impl(bt_child, da_child);
         }
     }
 
-    fn fix_node(&mut self, mut node: Node, base: Option<Base>) {
-        node.base = base.unwrap_or(node.base);
-        let n = mask(node.base as u64, 0, 29) + mask(node.info.type_id() as u64, 29, 2) +
+    fn fix_node(&mut self, node: Node, base: Base) {
+        let n = mask(base as u64, 0, 29) + mask(node.info.type_id() as u64, 29, 2) +
                 mask(node.is_terminal as u64, 31, 1) +
                 mask(node.chck as u64, 32, 8);
         let n = match &node.info {
