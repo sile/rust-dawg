@@ -10,6 +10,7 @@ use std::io::Error as IoError;
 use std::io::ErrorKind;
 use binary_tree::Node;
 use binary_tree::Trie;
+use EOS;
 
 pub struct Builder {
     memo: Memo,
@@ -30,7 +31,7 @@ impl Builder {
 
         for word in words {
             let word = try!(word);
-            try!(validate_input_order(prev.as_ref(), &word));
+            try!(validate_input_order(&prev, &word));
             self.insert(&mut root, word.as_bytes());
             prev = Some(word);
         }
@@ -53,6 +54,7 @@ impl Builder {
         if word.is_empty() {
             parent.is_terminal = true;
         } else {
+            assert!(word[0] != EOS);
             let mut child = Node::new(word[0]);
             self.add_new_child(&mut child, &word[1..]);
             child.sibling = parent.child.take().map(|c| self.share(c));
@@ -79,13 +81,15 @@ impl Builder {
     }
 }
 
-fn validate_input_order(prev: Option<&String>, curr: &String) -> IoResult<()> {
-    if prev.map_or(true, |p| p < curr) {
-        Ok(())
-    } else {
-        let msg = format!("The input is not sorted: previous_word={:?}, current_word={:?}",
-                          prev.unwrap(),
-                          curr);
-        Err(IoError::new(ErrorKind::InvalidInput, msg))
-    }
+fn validate_input_order(prev: &Option<String>, curr: &String) -> IoResult<()> {
+    prev.as_ref().map_or(Ok(()), |p| {
+        if p < curr {
+            Ok(())
+        } else {
+            let msg = format!("The input is not sorted: previous={:?}, current={:?}",
+                              p,
+                              curr);
+            Err(IoError::new(ErrorKind::InvalidInput, msg))
+        }
+    })
 }

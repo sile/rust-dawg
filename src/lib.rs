@@ -10,3 +10,4 @@ pub mod binary_tree;
 pub mod double_array;
 
 pub type WordId = u32;
+pub const EOS: u8 = 0;

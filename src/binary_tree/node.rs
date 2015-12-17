@@ -10,12 +10,12 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use WordId;
 
-#[derive(Eq)]
+#[derive(Eq,Clone)]
 pub struct Node {
-    pub child: Option<Rc<Node>>,
-    pub sibling: Option<Rc<Node>>,
     pub label: u8,
     pub is_terminal: bool,
+    pub child: Option<Rc<Node>>,
+    pub sibling: Option<Rc<Node>>,
     child_total: u32,
     sibling_total: u32,
 }
@@ -72,10 +72,6 @@ impl Node {
         Children { curr: self.child.take() }
     }
 
-    pub fn ref_children(&self) -> RefChildren {
-        RefChildren { curr: &self.child }
-    }
-
     pub fn addr(&self) -> NodeAddr {
         unsafe { mem::transmute(self) }
     }
@@ -96,22 +92,5 @@ impl Iterator for Children {
                             .unwrap_or_else(|| child.sibling.clone());
             child
         })
-    }
-}
-
-pub struct RefChildren<'a> {
-    curr: &'a Option<Rc<Node>>,
-}
-
-impl<'a> Iterator for RefChildren<'a> {
-    type Item =&'a Node;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(child) = self.curr.as_ref() {
-            self.curr = &child.sibling;
-            Some(child)
-        } else {
-            None
-        }
     }
 }

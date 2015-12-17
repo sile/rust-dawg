@@ -4,6 +4,7 @@
 // see the LICENSE file at the top-level directory.
 
 use std::str;
+use std::rc::Rc;
 use WordId;
 use binary_tree::Node;
 use double_array::Trie as DoubleArrayTrie;
@@ -38,12 +39,12 @@ impl Trie {
         self.search_common_prefix(word).find(|m| word.len() == m.1.len()).map(|m| m.0)
     }
 
-    pub fn search_common_prefix<'a, 'b>(&'a self, word: &'b str) -> CommonPrefixIter<'a, 'b> {
+    pub fn search_common_prefix<'a>(&self, word: &'a str) -> CommonPrefixIter<'a> {
         let mut it = CommonPrefixIter {
             word_id: 0,
-            offset: 0,
-            node: &self.root,
             word: word.as_bytes(),
+            offset: 0,
+            node: Rc::new(self.root.clone()),
         };
         if !it.node.is_terminal {
             it.go_to_next_common_prefix();
@@ -52,15 +53,15 @@ impl Trie {
     }
 }
 
-pub struct CommonPrefixIter<'a, 'b> {
+pub struct CommonPrefixIter<'a> {
     word_id: WordId,
+    word: &'a [u8],
     offset: usize,
-    node: &'a Node,
-    word: &'b [u8],
+    node: Rc<Node>,
 }
 
-impl<'a, 'b> Iterator for CommonPrefixIter<'a, 'b> {
-    type Item = (WordId, &'b str);
+impl<'a> Iterator for CommonPrefixIter<'a> {
+    type Item = (WordId, &'a str);
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.offset > self.word.len() {
@@ -75,14 +76,14 @@ impl<'a, 'b> Iterator for CommonPrefixIter<'a, 'b> {
     }
 }
 
-impl<'a, 'b> CommonPrefixIter<'a, 'b> {
+impl<'a> CommonPrefixIter<'a> {
     fn go_to_next_common_prefix(&mut self) {
         while self.next_child() {
             if self.node.is_terminal {
                 return;
             }
         }
-        self.offset = self.word.len() + 1;
+        self.offset = self.word.len() + 1; // Set EOS
     }
 
     fn next_child(&mut self) -> bool {
@@ -93,11 +94,11 @@ impl<'a, 'b> CommonPrefixIter<'a, 'b> {
         let label = self.word[self.offset];
         self.offset += 1;
         self.node
-            .ref_children()
+            .children()
             .find(|c| c.label == label)
             .map(|c| {
                 self.word_id += c.id_offset();
-                self.node = c;
+                self.node = c.clone();
             })
             .is_some()
     }
