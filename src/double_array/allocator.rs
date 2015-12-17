@@ -14,18 +14,9 @@ pub struct Allocator {
 impl Allocator {
     pub fn new() -> Self {
         Allocator {
-            head: 0,
-            base_used: BitVec::new(),
-            node_used: BitVec::new(),
-        }
-    }
-
-    // maybe unnecessary
-    pub fn fix(self, nexts: &mut Vec<u64>) {
-        for i in 0..nexts.len() {
-            if !self.node_used.get(i).unwrap() {
-                nexts[i] = 0;
-            }
+            head: 0x0,
+            base_used: BitVec::from_elem(1, true),
+            node_used: BitVec::from_elem(1, true),
         }
     }
 

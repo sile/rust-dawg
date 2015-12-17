@@ -33,7 +33,6 @@ impl Trie {
         let mut node = self.nodes[0];
         loop {
             count += is_terminal(node) as usize + self.id_offset(node) as usize;
-
             for i in 0x00.. {
                 if i == 0xFF {
                     return count;

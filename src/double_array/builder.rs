@@ -118,7 +118,6 @@ impl Builder {
         let bt_root = trie.to_node();
         let da_root = Node::new(0, &bt_root);
         self.build_impl(Rc::new(bt_root), da_root);
-        self.allocator.fix(&mut self.nodes);
         Trie::new(self.nodes, self.exts)
     }
 
