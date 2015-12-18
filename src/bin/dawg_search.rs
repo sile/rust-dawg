@@ -8,7 +8,7 @@ extern crate dawg;
 use std::env;
 use std::process;
 use std::io;
-use std::io::BufRead;
+use std::io::Write;
 use dawg::double_array::Trie;
 
 fn main() {
@@ -18,22 +18,35 @@ fn main() {
         process::exit(1);
     }
 
-    let stdin = io::stdin();
     let index_file = &args[1];
-    let trie = Trie::load(index_file)
-        .unwrap_or_else(|e| {
-                       println!("[ERROR] Can't load DAWG index: path={}, reason={}", index_file, e);
-                       process::exit(1);
-                   });
-    println!(">>>");
-    for line in stdin.lock().lines() {
-        let line = line.unwrap_or_else(|e| {
-            println!("[ERROR] Can't read stdin: reason={}", e);
-            process::exit(1);
-        });
+    let trie = Trie::load(index_file).unwrap_or_else(|e| {
+        println!("[ERROR] Can't load DAWG index: path={}, reason={}",
+                 index_file,
+                 e);
+        process::exit(1);
+    });
+
+    let mut line = String::new();
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
+
+        match io::stdin().read_line(&mut line) {
+            Err(e) => {
+                println!("[ERROR] Can't read a line from standard input: reason={}",
+                         e);
+                process::exit(1);
+            }
+            Ok(0) => {
+                break; // EOS
+            }
+            _ => {}
+        };
         for (word_id, prefix) in trie.search_common_prefix(&line) {
-            println!("  [{}] {}", word_id, prefix);
+            println!("[{}] {}", word_id, prefix);
         }
+
         println!("");
+        line.clear();
     }
 }
