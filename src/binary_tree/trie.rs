@@ -3,12 +3,13 @@
 // This software is released under the MIT License,
 // see the LICENSE file at the top-level directory.
 
-use std::str;
 use std::rc::Rc;
 use WordId;
 use binary_tree::Node;
 use double_array::Trie as DoubleArrayTrie;
 use double_array::Builder as DoubleArrayBuilder;
+use common::CommonPrefixIter;
+use common::NodeTraverse;
 
 pub struct Trie {
     root: Node,
@@ -39,67 +40,29 @@ impl Trie {
         self.search_common_prefix(word).find(|m| word.len() == m.1.len()).map(|m| m.0)
     }
 
-    pub fn search_common_prefix<'a>(&self, word: &'a str) -> CommonPrefixIter<'a> {
-        let mut it = CommonPrefixIter {
-            word_id: 0,
-            word: word.as_bytes(),
-            offset: 0,
-            node: Rc::new(self.root.clone()),
-        };
-        if !it.node.is_terminal {
-            it.go_to_next_common_prefix();
-        }
-        it
+    pub fn search_common_prefix<'a>(&self, word: &'a str) -> CommonPrefixIter<'a, NodeTraverser> {
+        CommonPrefixIter::new(word, NodeTraverser { node: Rc::new(self.root.clone()) })
     }
 }
 
-pub struct CommonPrefixIter<'a> {
-    word_id: WordId,
-    word: &'a [u8],
-    offset: usize,
+pub struct NodeTraverser {
     node: Rc<Node>,
 }
 
-impl<'a> Iterator for CommonPrefixIter<'a> {
-    type Item = (WordId, &'a str);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.offset > self.word.len() {
-            None
-        } else {
-            let prefix = unsafe { str::from_utf8_unchecked(&self.word[0..self.offset]) };
-            let item = (self.word_id, prefix);
-            self.word_id += 1;
-            self.go_to_next_common_prefix();
-            Some(item)
-        }
-    }
-}
-
-impl<'a> CommonPrefixIter<'a> {
-    fn go_to_next_common_prefix(&mut self) {
-        while self.next_child() {
-            if self.node.is_terminal {
-                return;
-            }
-        }
-        self.offset = self.word.len() + 1; // Set EOS
+impl NodeTraverse for NodeTraverser {
+    fn is_terminal(&self) -> bool {
+        self.node.is_terminal
     }
 
-    fn next_child(&mut self) -> bool {
-        if self.offset == self.word.len() {
-            return false;
-        }
+    fn id_offset(&self) -> u32 {
+        self.node.id_offset()
+    }
 
-        let label = self.word[self.offset];
-        self.offset += 1;
+    fn jump_label(&mut self, label: u8) -> bool {
         self.node
             .children()
             .find(|c| c.label == label)
-            .map(|c| {
-                self.word_id += c.id_offset();
-                self.node = c.clone();
-            })
+            .map(|c| self.node = c)
             .is_some()
     }
 }

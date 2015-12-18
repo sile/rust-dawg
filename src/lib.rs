@@ -8,6 +8,7 @@ extern crate byteorder;
 
 pub mod binary_tree;
 pub mod double_array;
+pub mod common;
 
 pub type WordId = u32;
 pub const EOS: u8 = 0;

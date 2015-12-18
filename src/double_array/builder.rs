@@ -54,23 +54,7 @@ impl Node {
             chck: bt_node.label,
             is_terminal: bt_node.is_terminal,
             index: parent_base + bt_node.label as u32,
-            info: match bt_node.id_offset() {
-                n if n < 0x100 => {
-                    NodeInfo::Type0 {
-                        id_offset: n as u8,
-                        child1: None,
-                        child2: None,
-                    }
-                }
-                n if n < 0x10000 => {
-                    NodeInfo::Type1 {
-                        id_offset: n as u16,
-                        child: None,
-                    }
-                }
-                n if n < 0x1000000 => NodeInfo::Type2 { id_offset: n as U24 },
-                n => NodeInfo::Type3 { id_offset: n },
-            },
+            info: NodeInfo::new(bt_node.id_offset()),
         }
     }
 
@@ -94,6 +78,26 @@ impl Node {
 }
 
 impl NodeInfo {
+    pub fn new(id_offset: u32) -> Self {
+        match id_offset {
+            n if n < 0x100 => {
+                NodeInfo::Type0 {
+                    id_offset: n as u8,
+                    child1: None,
+                    child2: None,
+                }
+            }
+            n if n < 0x10000 => {
+                NodeInfo::Type1 {
+                    id_offset: n as u16,
+                    child: None,
+                }
+            }
+            n if n < 0x1000000 => NodeInfo::Type2 { id_offset: n as U24 },
+            n => NodeInfo::Type3 { id_offset: n },
+        }
+    }
+
     pub fn type_id(&self) -> u8 {
         match self {
             &NodeInfo::Type0{..} => 0,
@@ -127,14 +131,12 @@ impl Builder {
         let mut do_memoize;
         loop {
             if bt_node.child.is_none() {
-                // empty children
                 self.fix_node(da_node, 0);
                 return;
             }
 
             memo_key = bt_node.child.as_ref().unwrap().addr();
             if let Some(base) = self.memo.get(&memo_key).cloned() {
-                // have been memoized
                 self.fix_node(da_node, base);
                 return;
             }
@@ -151,10 +153,7 @@ impl Builder {
             };
             children.reverse();
 
-            if children.len() != 1 {
-                break;
-            }
-            if children[0].is_terminal {
+            if children.len() != 1 || children[0].is_terminal {
                 break;
             }
             if !da_node.try_add_child(children[0].label) {

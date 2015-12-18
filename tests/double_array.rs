@@ -18,7 +18,11 @@ fn build() {
 
 #[test]
 fn search_common_prefix() {
-    let trie = BinTreeBuilder::new().build(words().into_iter().map(|w| Ok(w))).ok().unwrap().to_double_array();
+    let trie = BinTreeBuilder::new()
+                   .build(words().into_iter().map(|w| Ok(w)))
+                   .ok()
+                   .unwrap()
+                   .to_double_array();
 
     assert_eq!(0, trie.search_common_prefix("hoge").count());
 

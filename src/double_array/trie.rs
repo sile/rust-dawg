@@ -3,7 +3,6 @@
 // This software is released under the MIT License,
 // see the LICENSE file at the top-level directory.
 
-use std::str;
 use std::path::Path;
 use std::fs::File;
 use std::io::Result as IoResult;
@@ -14,6 +13,8 @@ use std::io::BufReader;
 use byteorder::ByteOrder;
 use byteorder::NativeEndian;
 use WordId;
+use common::CommonPrefixIter;
+use common::NodeTraverse;
 
 pub struct Trie {
     nodes: Vec<u64>,
@@ -30,17 +31,16 @@ impl Trie {
 
     pub fn len(&self) -> usize {
         let mut count = 0;
-        let mut node = self.nodes[0];
+        let mut node = NodeTraverser::new(self);
         loop {
-            count += is_terminal(node) as usize + self.id_offset(node) as usize;
+            count += node.is_terminal() as usize + node.id_offset() as usize;
             for i in 0x00.. {
                 if i == 0xFF {
                     return count;
                 }
 
                 let label = (0xFF - i) as u8;
-                if let Some(next) = self.next(node, label) {
-                    node = next;
+                if node.jump_label(label) {
                     break;
                 }
             }
@@ -55,19 +55,10 @@ impl Trie {
         self.search_common_prefix(word).find(|m| word.len() == m.1.len()).map(|m| m.0)
     }
 
-    pub fn search_common_prefix<'a, 'b>(&'a self, word: &'b str) -> CommonPrefixIter<'a, 'b> {
-        let mut it = CommonPrefixIter {
-            word_id: 0,
-            offset: 0,
-            node: &self.nodes[0],
-            word: word.as_bytes(),
-            nodes: &self.nodes,
-            exts: &self.exts,
-        };
-        if !is_terminal(*it.node) {
-            it.go_to_next_common_prefix();
-        }
-        it
+    pub fn search_common_prefix<'a, 'b>(&'a self,
+                                        word: &'b str)
+                                        -> CommonPrefixIter<'b, NodeTraverser<'a>> {
+        CommonPrefixIter::new(word, NodeTraverser::new(self))
     }
 
     pub fn load<P: AsRef<Path>>(index_file_path: P) -> IoResult<Self> {
@@ -99,32 +90,6 @@ impl Trie {
             try!(write_u32(&mut w, *e));
         }
         Ok(())
-    }
-
-    fn id_offset(&self, n: u64) -> u32 {
-        let node_type = mask(n, 29, 2);
-        match node_type {
-            0 => mask(n, 56, 8) as u32,
-            1 => mask(n, 48, 16) as u32,
-            2 => mask(n, 40, 24) as u32,
-            3 => self.exts[mask(n, 40, 24) as usize],
-            _ => unreachable!(),
-        }
-    }
-
-    fn next(&self, n: u64, label: u8) -> Option<u64> {
-        let base = base(n) as usize;
-        if self.nodes.len() <= base + label as usize {
-            return None;
-        }
-
-        let next = self.nodes[(base + label as usize)];
-        let chck = mask(next, 32, 8) as u8;
-        if label == chck {
-            Some(next)
-        } else {
-            None
-        }
     }
 }
 
@@ -166,96 +131,19 @@ fn mask(n: u64, offset: usize, size: usize) -> u64 {
     (n >> offset) & ((1 << size) - 1)
 }
 
-pub struct CommonPrefixIter<'a, 'b> {
-    word_id: WordId,
-    offset: usize,
-    node: &'a u64,
-    word: &'b [u8],
+pub struct NodeTraverser<'a> {
+    node: u64,
     nodes: &'a Vec<u64>,
     exts: &'a Vec<u32>,
 }
 
-impl<'a, 'b> Iterator for CommonPrefixIter<'a, 'b> {
-    type Item = (WordId, &'b str);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.offset > self.word.len() {
-            None
-        } else {
-            let prefix = unsafe { str::from_utf8_unchecked(&self.word[0..self.offset]) };
-            let item = (self.word_id, prefix);
-            self.word_id += 1;
-            self.go_to_next_common_prefix();
-            Some(item)
-        }
-    }
-}
-
-impl<'a, 'b> CommonPrefixIter<'a, 'b> {
-    fn go_to_next_common_prefix(&mut self) {
-        while self.next_child() {
-            if is_terminal(*self.node) {
-                return;
-            }
-        }
-        self.offset = self.word.len() + 1;
+impl<'a> NodeTraverse for NodeTraverser<'a> {
+    fn is_terminal(&self) -> bool {
+        is_terminal(self.node)
     }
 
-    fn next_child(&mut self) -> bool {
-        if self.offset == self.word.len() {
-            return false;
-        }
-
-        if !self.check_encoded_children() {
-            return false;
-        }
-
-        let label = self.word[self.offset];
-        self.offset += 1;
-        if let Some(next) = self.next_node(*self.node, label) {
-            self.word_id += self.id_offset(*next);
-            self.node = next;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn check_encoded_children(&mut self) -> bool {
-        let node_type = mask(*self.node, 29, 2);
-        match node_type {
-            0 => {
-                let c0 = mask(*self.node, 40, 8) as u8;
-                let c1 = mask(*self.node, 48, 8) as u8;
-                if (c0 == 0 || self.word[self.offset] == c0) &&
-                   (c1 == 0 || self.word.get(self.offset + 1).map_or(false, |x| *x == c1)) {
-                    if c0 != 0 {
-                        self.offset += 1;
-                    }
-                    if c1 != 0 {
-                        self.offset += 1;
-                    }
-                    self.offset < self.word.len()
-                } else {
-                    false
-                }
-            }
-            1 => {
-                let c = mask(*self.node, 40, 8) as u8;
-                if c == 0 || self.word[self.offset] == c {
-                    if c != 0 {
-                        self.offset += 1;
-                    }
-                    self.offset < self.word.len()
-                } else {
-                    false
-                }
-            }
-            _ => true,
-        }
-    }
-
-    fn id_offset(&self, n: u64) -> u32 {
+    fn id_offset(&self) -> u32 {
+        let n = self.node;
         let node_type = mask(n, 29, 2);
         match node_type {
             0 => mask(n, 56, 8) as u32,
@@ -266,18 +154,60 @@ impl<'a, 'b> CommonPrefixIter<'a, 'b> {
         }
     }
 
-    fn next_node(&self, n: u64, label: u8) -> Option<&'a u64> {
-        let base = base(n) as usize;
+    fn jump_label(&mut self, label: u8) -> bool {
+        let base = base(self.node) as usize;
         if self.nodes.len() <= base + label as usize {
-            return None;
+            return false;
         }
 
-        let next = &self.nodes[(base + label as usize)];
-        let chck = mask(*next, 32, 8) as u8;
+        let next = self.nodes[(base + label as usize)];
+        let chck = mask(next, 32, 8) as u8;
         if label == chck {
-            Some(next)
+            self.node = next;
+            true
         } else {
-            None
+            false
         }
+    }
+
+    fn jump_words(&mut self, word: &[u8]) -> Option<usize> {
+        self.check_encoded_children(word).and_then(|read| {
+            let label = word[read];
+            if self.jump_label(label) {
+                Some(read + 1)
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<'a> NodeTraverser<'a> {
+    pub fn new(trie: &'a Trie) -> Self {
+        NodeTraverser {
+            node: trie.nodes[0],
+            nodes: &trie.nodes,
+            exts: &trie.exts,
+        }
+    }
+
+    fn check_encoded_children(&mut self, word: &[u8]) -> Option<usize> {
+        assert!(word.len() > 0);
+        let node_type = mask(self.node, 29, 2);
+        let max = match node_type {
+            0 => 2,
+            1 => 1,
+            _ => 0,
+        };
+        for i in 0..max {
+            let c = mask(self.node, 40 + 8 * i, 8) as u8;
+            if c == 0 {
+                return Some(i);
+            }
+            if i == word.len() - 1 || word[i] != c {
+                return None;
+            }
+        }
+        Some(max)
     }
 }
