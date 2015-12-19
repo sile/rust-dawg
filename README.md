@@ -30,7 +30,7 @@ Usage Examples
 # Gets n-gram corpus
 $ wget -xnH -i http://dist.s-yata.jp/corpus/nwc2010/ngrams/char/over99/filelist
 $ xz -d corpus/nwc2010/ngrams/char/over999/*/*.xz
-$ head corpus/nwc2010/ngrams/char/over999/2gms/2gm-0000
+$ head -9 corpus/nwc2010/ngrams/char/over999/2gms/2gm-0000
 " "     123067
 " #     2867
 " $     1047
@@ -40,7 +40,6 @@ $ head corpus/nwc2010/ngrams/char/over999/2gms/2gm-0000
 " (     134099
 " )     40850
 " *     5752
-" +     3720
 
 $ cut -f 1 corpus/nwc2010/ngrams/char/over999/*gms/* | sed -e 's/ //g' > words.tmp
 $ LC_ALL=c sort words.tmp -o words
