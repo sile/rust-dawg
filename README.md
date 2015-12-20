@@ -52,7 +52,7 @@ $ du -h words
 # Builds index file
 $ /usr/bin/time -v target/release/dawg_build dawg.idx < words
 DONE
-        Command being timed: "target/release/dawg_build /tmp/dawg.idx"
+        Command being timed: "target/release/dawg_build dawg.idx"
         User time (seconds): 61.36
         System time (seconds): 0.56
         Percent of CPU this job got: 100%
