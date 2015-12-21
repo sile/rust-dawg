@@ -42,8 +42,10 @@ fn main() {
             }
             _ => {}
         };
-        for (word_id, prefix) in trie.search_common_prefix(&line) {
-            println!("[{}] {}", word_id, prefix);
+        for (word_id, prefix_len) in trie.search_common_prefix(line.bytes()) {
+            println!("[{}] {}",
+                     word_id,
+                     unsafe { line.slice_unchecked(0, prefix_len) });
         }
 
         println!("");

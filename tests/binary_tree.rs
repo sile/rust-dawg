@@ -9,36 +9,32 @@ use dawg::binary_tree::Builder;
 
 #[test]
 fn build() {
-    let trie = Builder::new()
-                   .build(words().into_iter().map(|w| Ok(w)))
-                   .unwrap_or_else(|e| panic!(e.to_string()));
-    assert_eq!(words().len(), trie.len());
+    let mut b = Builder::new();
+    for w in words().iter() {
+        assert!(b.insert(w.bytes()).is_ok());
+    }
+    assert_eq!(words().len(), b.finish().len());
 }
 
 #[test]
 fn search_common_prefix() {
-    let trie = Builder::new().build(words().into_iter().map(|w| Ok(w))).ok().unwrap();
+    let trie = words()
+                   .iter()
+                   .fold(Builder::new(), |mut b, w| {
+                       b.insert(w.bytes()).ok().unwrap();
+                       b
+                   })
+                   .finish();
 
-    assert_eq!(0, trie.search_common_prefix("hoge").count());
+    assert_eq!(0, trie.search_common_prefix("hoge".bytes()).count());
 
-    assert_eq!(vec![(0, "abc")],
-               trie.search_common_prefix("abc").collect::<Vec<_>>());
+    assert_eq!(vec![(0, 3)],
+               trie.search_common_prefix("abc".bytes()).collect::<Vec<_>>());
 
-    assert_eq!(vec![(4, "cd"), (5, "cddr")],
-               trie.search_common_prefix("cddrr").collect::<Vec<_>>());
+    assert_eq!(vec![(4, 2), (5, 4)],
+               trie.search_common_prefix("cddrr".bytes()).collect::<Vec<_>>());
 }
 
-fn words() -> Vec<String> {
-    vec![
-        "abc",
-        "b",
-        "bbb",
-        "car",
-        "cd",
-        "cddr",
-        "cdr",
-        ]
-        .iter()
-        .map(|w| w.to_string())
-        .collect()
+fn words() -> [&'static str; 7] {
+    ["abc", "b", "bbb", "car", "cd", "cddr", "cdr"]
 }

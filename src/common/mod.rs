@@ -3,24 +3,25 @@
 // This software is released under the MIT License,
 // see the LICENSE file at the top-level directory.
 
-use std::str;
 use WordId;
-use Char;
+use Word;
 
 pub struct CommonPrefixIter<'a, T> {
     word_id: WordId,
-    word: &'a [Char],
-    offset: usize,
+    word_len: usize,
+    word: Word<'a>,
     node: T,
+    finished: bool,
 }
 
 impl<'a, T: NodeTraverse> CommonPrefixIter<'a, T> {
-    pub fn new(word: &'a str, root: T) -> Self {
+    pub fn new(word: Word<'a>, root: T) -> Self {
         let mut it = CommonPrefixIter {
             word_id: 0,
-            word: word.as_bytes(),
-            offset: 0,
+            word_len: word.len(),
+            word: word,
             node: root,
+            finished: false,
         };
         if !it.node.is_terminal() {
             it.go_to_next_common_prefix();
@@ -34,33 +35,23 @@ impl<'a, T: NodeTraverse> CommonPrefixIter<'a, T> {
                 return;
             }
         }
-        self.offset = self.word.len() + 1; // Set EOS
+        self.finished = true;
     }
 
     fn next_child(&mut self) -> bool {
-        if self.offset == self.word.len() {
-            return false;
-        }
-
-        self.node
-            .jump_words(&self.word[self.offset..])
-            .map(|read| {
-                self.offset += read;
-                self.word_id += self.node.id_offset();
-            })
-            .is_some()
+        self.node.jump(&mut self.word).map(|_| self.word_id += self.node.id_offset()).is_some()
     }
 }
 
 impl<'a, T: NodeTraverse> Iterator for CommonPrefixIter<'a, T> {
-    type Item = (WordId, &'a str);
+    type Item = (WordId, usize);
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.offset > self.word.len() {
+        if self.finished {
             None
         } else {
-            let prefix = unsafe { str::from_utf8_unchecked(&self.word[0..self.offset]) };
-            let item = (self.word_id, prefix);
+            let prefix_len = self.word_len - self.word.len();
+            let item = (self.word_id, prefix_len);
             self.word_id += 1;
             self.go_to_next_common_prefix();
             Some(item)
@@ -71,12 +62,5 @@ impl<'a, T: NodeTraverse> Iterator for CommonPrefixIter<'a, T> {
 pub trait NodeTraverse {
     fn is_terminal(&self) -> bool;
     fn id_offset(&self) -> u32;
-    fn jump_char(&mut self, ch: Char) -> bool;
-    fn jump_words(&mut self, word: &[Char]) -> Option<usize> {
-        if self.jump_char(word[0]) {
-            Some(1)
-        } else {
-            None
-        }
-    }
+    fn jump(&mut self, word: &mut Word) -> Option<()>;
 }

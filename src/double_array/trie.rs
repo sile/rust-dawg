@@ -13,6 +13,7 @@ use std::io::BufReader;
 use byteorder::ByteOrder;
 use byteorder::NativeEndian;
 use WordId;
+use Word;
 use Char;
 use common::CommonPrefixIter;
 use common::NodeTraverse;
@@ -41,23 +42,24 @@ impl Trie {
                 }
 
                 let ch = (0xFF - i) as Char;
-                if node.jump_char(ch) {
+                if node.jump_char(ch).is_some() {
                     break;
                 }
             }
         }
     }
 
-    pub fn contains(&self, word: &str) -> bool {
+    pub fn contains(&self, word: Word) -> bool {
         self.get_id(word).is_some()
     }
 
-    pub fn get_id(&self, word: &str) -> Option<WordId> {
-        self.search_common_prefix(word).find(|m| word.len() == m.1.len()).map(|m| m.0)
+    pub fn get_id(&self, word: Word) -> Option<WordId> {
+        let word_len = word.len();
+        self.search_common_prefix(word).find(|m| word_len == m.1).map(|m| m.0)
     }
 
     pub fn search_common_prefix<'a, 'b>(&'a self,
-                                        word: &'b str)
+                                        word: Word<'b>)
                                         -> CommonPrefixIter<'b, NodeTraverser<'a>> {
         CommonPrefixIter::new(word, NodeTraverser::new(self))
     }
@@ -155,31 +157,9 @@ impl<'a> NodeTraverse for NodeTraverser<'a> {
         }
     }
 
-    fn jump_char(&mut self, ch: Char) -> bool {
-        let base = base(self.node) as usize;
-        if self.nodes.len() <= base + ch as usize {
-            return false;
-        }
-
-        let next = self.nodes[(base + ch as usize)];
-        let chck = mask(next, 32, 8) as Char;
-        if ch == chck {
-            self.node = next;
-            true
-        } else {
-            false
-        }
-    }
-
-    fn jump_words(&mut self, word: &[Char]) -> Option<usize> {
-        self.check_encoded_children(word).and_then(|read| {
-            let ch = word[read];
-            if self.jump_char(ch) {
-                Some(read + 1)
-            } else {
-                None
-            }
-        })
+    fn jump(&mut self, word: &mut Word) -> Option<()> {
+        self.check_encoded_children(word)
+            .and_then(|_| word.next().and_then(|ch| self.jump_char(ch)))
     }
 }
 
@@ -192,8 +172,23 @@ impl<'a> NodeTraverser<'a> {
         }
     }
 
-    fn check_encoded_children(&mut self, word: &[Char]) -> Option<usize> {
-        assert!(word.len() > 0);
+    fn jump_char(&mut self, ch: Char) -> Option<()> {
+        let base = base(self.node) as usize;
+        if self.nodes.len() <= base + ch as usize {
+            return None;
+        }
+
+        let next = self.nodes[(base + ch as usize)];
+        let chck = mask(next, 32, 8) as Char;
+        if ch == chck {
+            self.node = next;
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    fn check_encoded_children(&mut self, word: &mut Word) -> Option<()> {
         let node_type = mask(self.node, 29, 2);
         let max = match node_type {
             0 => 2,
@@ -203,12 +198,12 @@ impl<'a> NodeTraverser<'a> {
         for i in 0..max {
             let c = mask(self.node, 40 + 8 * i, 8) as Char;
             if c == 0 {
-                return Some(i);
+                return Some(());
             }
-            if i == word.len() - 1 || word[i] != c {
+            if !word.next().map_or(false, |ch| ch == c) {
                 return None;
             }
         }
-        Some(max)
+        Some(())
     }
 }

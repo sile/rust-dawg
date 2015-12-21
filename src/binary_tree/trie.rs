@@ -5,10 +5,8 @@
 
 use std::rc::Rc;
 use WordId;
-use Char;
+use Word;
 use binary_tree::Node;
-use double_array::Trie as DoubleArrayTrie;
-use double_array::Builder as DoubleArrayBuilder;
 use common::CommonPrefixIter;
 use common::NodeTraverse;
 
@@ -29,19 +27,16 @@ impl Trie {
         self.root
     }
 
-    pub fn to_double_array(self) -> DoubleArrayTrie {
-        DoubleArrayBuilder::new().build(self)
-    }
-
-    pub fn contains(&self, word: &str) -> bool {
+    pub fn contains(&self, word: Word) -> bool {
         self.get_id(word).is_some()
     }
 
-    pub fn get_id(&self, word: &str) -> Option<WordId> {
-        self.search_common_prefix(word).find(|m| word.len() == m.1.len()).map(|m| m.0)
+    pub fn get_id(&self, word: Word) -> Option<WordId> {
+        let word_len = word.len();
+        self.search_common_prefix(word).find(|m| word_len == m.1).map(|m| m.0)
     }
 
-    pub fn search_common_prefix<'a>(&self, word: &'a str) -> CommonPrefixIter<'a, NodeTraverser> {
+    pub fn search_common_prefix<'a>(&self, word: Word<'a>) -> CommonPrefixIter<'a, NodeTraverser> {
         CommonPrefixIter::new(word, NodeTraverser { node: Rc::new(self.root.clone()) })
     }
 }
@@ -59,11 +54,12 @@ impl NodeTraverse for NodeTraverser {
         self.node.id_offset()
     }
 
-    fn jump_char(&mut self, ch: Char) -> bool {
-        self.node
-            .children()
-            .find(|c| c.ch == ch)
-            .map(|c| self.node = c)
-            .is_some()
+    fn jump(&mut self, word: &mut Word) -> Option<()> {
+        word.next().and_then(|ch| {
+            self.node
+                .children()
+                .find(|c| c.ch == ch)
+                .map(|c| self.node = c)
+        })
     }
 }

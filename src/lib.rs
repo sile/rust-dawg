@@ -6,11 +6,14 @@
 extern crate bit_vec;
 extern crate byteorder;
 
+use std::str::Bytes;
+
 pub mod binary_tree;
 pub mod double_array;
 pub mod common;
 
-pub type WordId = u32;
 pub type Char = u8;
+pub type WordId = u32;
+pub type Word<'a> = Bytes<'a>;
 
 pub const EOS: Char = 0 as Char;

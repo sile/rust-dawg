@@ -21,15 +21,27 @@ fn main() {
 
     let stdin = io::stdin();
     let output_file = &args[1];
-    let trie = BinaryTreeBuilder::new()
-                   .build(stdin.lock().lines())
-                   .unwrap_or_else(|e| {
-                       println!("[ERROR] Can't build DAWG: reason={}", e);
-                       process::exit(1);
-                   });
-    let trie = DoubleArrayBuilder::new().build(trie);
+
+    let mut builder = BinaryTreeBuilder::new();
+    for line in stdin.lock().lines() {
+        match line {
+            Err(e) => {
+                println!("[ERROR] Can't read line: reason={}", e);
+                process::exit(1);
+            }
+            Ok(line) => {
+                if let Err(e) = builder.insert(line.bytes()) {
+                    println!("[ERROR] Can't insert a word {:?}: reason={}", line, e);
+                    process::exit(1);
+                }
+            }
+        }
+    }
+    let trie = DoubleArrayBuilder::new().build(builder.finish());
     if let Err(e) = trie.save(output_file) {
-        println!("[ERROR] Can't save dawg index: path={}, reason={}", output_file, e);
+        println!("[ERROR] Can't save dawg index: path={}, reason={}",
+                 output_file,
+                 e);
         process::exit(1);
     }
 
