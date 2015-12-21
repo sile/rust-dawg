@@ -11,6 +11,7 @@ use std::io::ErrorKind;
 use binary_tree::Node;
 use binary_tree::Trie;
 use EOS;
+use Char;
 
 pub struct Builder {
     memo: Memo,
@@ -41,8 +42,8 @@ impl Builder {
         Ok(Trie::new(root))
     }
 
-    fn insert(&mut self, parent: &mut Node, word: &[u8]) {
-        if word.is_empty() || parent.child.as_ref().map_or(true, |c| c.label != word[0]) {
+    fn insert(&mut self, parent: &mut Node, word: &[Char]) {
+        if word.is_empty() || parent.child.as_ref().map_or(true, |c| c.ch != word[0]) {
             self.add_new_child(parent, word);
         } else {
             let child = parent.child.as_mut().unwrap();
@@ -50,7 +51,7 @@ impl Builder {
         }
     }
 
-    fn add_new_child(&mut self, parent: &mut Node, word: &[u8]) {
+    fn add_new_child(&mut self, parent: &mut Node, word: &[Char]) {
         if word.is_empty() {
             parent.is_terminal = true;
         } else {

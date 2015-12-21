@@ -5,6 +5,7 @@
 
 use std::rc::Rc;
 use WordId;
+use Char;
 use binary_tree::Node;
 use double_array::Trie as DoubleArrayTrie;
 use double_array::Builder as DoubleArrayBuilder;
@@ -58,10 +59,10 @@ impl NodeTraverse for NodeTraverser {
         self.node.id_offset()
     }
 
-    fn jump_label(&mut self, label: u8) -> bool {
+    fn jump_char(&mut self, ch: Char) -> bool {
         self.node
             .children()
-            .find(|c| c.label == label)
+            .find(|c| c.ch == ch)
             .map(|c| self.node = c)
             .is_some()
     }

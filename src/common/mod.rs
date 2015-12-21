@@ -5,10 +5,11 @@
 
 use std::str;
 use WordId;
+use Char;
 
 pub struct CommonPrefixIter<'a, T> {
     word_id: WordId,
-    word: &'a [u8],
+    word: &'a [Char],
     offset: usize,
     node: T,
 }
@@ -70,9 +71,9 @@ impl<'a, T: NodeTraverse> Iterator for CommonPrefixIter<'a, T> {
 pub trait NodeTraverse {
     fn is_terminal(&self) -> bool;
     fn id_offset(&self) -> u32;
-    fn jump_label(&mut self, label: u8) -> bool;
-    fn jump_words(&mut self, word: &[u8]) -> Option<usize> {
-        if self.jump_label(word[0]) {
+    fn jump_char(&mut self, ch: Char) -> bool;
+    fn jump_words(&mut self, word: &[Char]) -> Option<usize> {
+        if self.jump_char(word[0]) {
             Some(1)
         } else {
             None

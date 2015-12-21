@@ -9,10 +9,11 @@ use std::cmp::PartialEq;
 use std::hash::Hash;
 use std::hash::Hasher;
 use WordId;
+use Char;
 
 #[derive(Eq,Clone)]
 pub struct Node {
-    pub label: u8,
+    pub ch: Char,
     pub is_terminal: bool,
     pub child: Option<Rc<Node>>,
     pub sibling: Option<Rc<Node>>,
@@ -26,13 +27,13 @@ impl PartialEq for Node {
     fn eq(&self, other: &Node) -> bool {
         (self.child.as_ref().map(|n| n.addr()) == other.child.as_ref().map(|n| n.addr()) &&
          self.sibling.as_ref().map(|n| n.addr()) == other.sibling.as_ref().map(|n| n.addr()) &&
-         self.label == other.label && self.is_terminal == other.is_terminal)
+         self.ch == other.ch && self.is_terminal == other.is_terminal)
     }
 }
 
 impl Hash for Node {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.label.hash(state);
+        self.ch.hash(state);
         self.is_terminal.hash(state);
         self.child.as_ref().map(|n| n.addr()).hash(state);
         self.sibling.as_ref().map(|n| n.addr()).hash(state);
@@ -40,9 +41,9 @@ impl Hash for Node {
 }
 
 impl Node {
-    pub fn new(label: u8) -> Self {
+    pub fn new(ch: Char) -> Self {
         Node {
-            label: label,
+            ch: ch,
             is_terminal: false,
             child: None,
             sibling: None,

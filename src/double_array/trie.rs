@@ -13,6 +13,7 @@ use std::io::BufReader;
 use byteorder::ByteOrder;
 use byteorder::NativeEndian;
 use WordId;
+use Char;
 use common::CommonPrefixIter;
 use common::NodeTraverse;
 
@@ -39,8 +40,8 @@ impl Trie {
                     return count;
                 }
 
-                let label = (0xFF - i) as u8;
-                if node.jump_label(label) {
+                let ch = (0xFF - i) as Char;
+                if node.jump_char(ch) {
                     break;
                 }
             }
@@ -154,15 +155,15 @@ impl<'a> NodeTraverse for NodeTraverser<'a> {
         }
     }
 
-    fn jump_label(&mut self, label: u8) -> bool {
+    fn jump_char(&mut self, ch: Char) -> bool {
         let base = base(self.node) as usize;
-        if self.nodes.len() <= base + label as usize {
+        if self.nodes.len() <= base + ch as usize {
             return false;
         }
 
-        let next = self.nodes[(base + label as usize)];
-        let chck = mask(next, 32, 8) as u8;
-        if label == chck {
+        let next = self.nodes[(base + ch as usize)];
+        let chck = mask(next, 32, 8) as Char;
+        if ch == chck {
             self.node = next;
             true
         } else {
@@ -170,10 +171,10 @@ impl<'a> NodeTraverse for NodeTraverser<'a> {
         }
     }
 
-    fn jump_words(&mut self, word: &[u8]) -> Option<usize> {
+    fn jump_words(&mut self, word: &[Char]) -> Option<usize> {
         self.check_encoded_children(word).and_then(|read| {
-            let label = word[read];
-            if self.jump_label(label) {
+            let ch = word[read];
+            if self.jump_char(ch) {
                 Some(read + 1)
             } else {
                 None
@@ -191,7 +192,7 @@ impl<'a> NodeTraverser<'a> {
         }
     }
 
-    fn check_encoded_children(&mut self, word: &[u8]) -> Option<usize> {
+    fn check_encoded_children(&mut self, word: &[Char]) -> Option<usize> {
         assert!(word.len() > 0);
         let node_type = mask(self.node, 29, 2);
         let max = match node_type {
@@ -200,7 +201,7 @@ impl<'a> NodeTraverser<'a> {
             _ => 0,
         };
         for i in 0..max {
-            let c = mask(self.node, 40 + 8 * i, 8) as u8;
+            let c = mask(self.node, 40 + 8 * i, 8) as Char;
             if c == 0 {
                 return Some(i);
             }

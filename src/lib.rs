@@ -11,4 +11,6 @@ pub mod double_array;
 pub mod common;
 
 pub type WordId = u32;
-pub const EOS: u8 = 0;
+pub type Char = u8;
+
+pub const EOS: Char = 0 as Char;

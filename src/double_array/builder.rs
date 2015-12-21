@@ -51,25 +51,25 @@ enum NodeInfo {
 impl Node {
     pub fn new(parent_base: Base, bt_node: &BinTreeNode) -> Self {
         Node {
-            chck: bt_node.label,
+            chck: bt_node.ch,
             is_terminal: bt_node.is_terminal,
-            index: parent_base + bt_node.label as u32,
+            index: parent_base + bt_node.ch as u32,
             info: NodeInfo::new(bt_node.id_offset()),
         }
     }
 
-    pub fn try_add_child(&mut self, label: u8) -> bool {
+    pub fn try_add_child(&mut self, ch: u8) -> bool {
         match &mut self.info {
             &mut NodeInfo::Type0{ref mut child1, ..} if child1.is_none() => {
-                *child1 = Some(label);
+                *child1 = Some(ch);
                 true
             }
             &mut NodeInfo::Type0{ref mut child2, ..} if child2.is_none() => {
-                *child2 = Some(label);
+                *child2 = Some(ch);
                 true
             }
             &mut NodeInfo::Type1{ref mut child, ..} if child.is_none() => {
-                *child = Some(label);
+                *child = Some(ch);
                 true
             }
             _ => false,
@@ -156,15 +156,15 @@ impl Builder {
             if children.len() != 1 || children[0].is_terminal {
                 break;
             }
-            if !da_node.try_add_child(children[0].label) {
+            if !da_node.try_add_child(children[0].ch) {
                 break;
             }
             bt_node = children[0].clone();
         }
 
         let base = {
-            let labels = children.iter().map(|c| c.label).collect::<Vec<_>>();
-            self.allocator.allocate(&labels, &mut self.nodes)
+            let chars = children.iter().map(|c| c.ch).collect::<Vec<_>>();
+            self.allocator.allocate(&chars, &mut self.nodes)
         };
         if do_memoize {
             self.memo.insert(memo_key, base);
