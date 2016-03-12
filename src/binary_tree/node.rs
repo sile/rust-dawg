@@ -3,7 +3,6 @@
 // This software is released under the MIT License,
 // see the LICENSE file at the top-level directory.
 
-use std::mem;
 use std::rc::Rc;
 use std::cmp::PartialEq;
 use std::hash::Hash;
@@ -21,7 +20,7 @@ pub struct Node {
     sibling_total: u32,
 }
 
-pub type NodeAddr = usize;
+pub type NodeAddr = *const Node;
 
 impl PartialEq for Node {
     fn eq(&self, other: &Node) -> bool {
@@ -74,7 +73,7 @@ impl Node {
     }
 
     pub fn addr(&self) -> NodeAddr {
-        unsafe { mem::transmute(self) }
+        self as NodeAddr
     }
 }
 
